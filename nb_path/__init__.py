@@ -3,11 +3,11 @@ nb_path.py - An enhanced path manipulation module that integrates pathlib, shuti
 """
 
 from contextlib import contextmanager
-import functools
 import hashlib
 import importlib.util
 import logging
 from logging import getLogger
+import functools
 import zipfile
 import os
 import shutil
@@ -16,7 +16,6 @@ import threading
 import types
 import typing
 from pathlib import Path, WindowsPath, PosixPath
-# from nb_log import get_logger
 import tempfile
 import re
 from collections import namedtuple
@@ -300,18 +299,15 @@ class NbPath(_Base, ):
             ]
         
         current = self.resolve()
-        while current != current.parent: 
+        while True:
             for marker in markers:
                 if (current / marker).exists():
                     self.logger.debug(f"Project root found at: {current} (marker: '{marker}')")
                     return current
+
+            if current == current.parent:  # Reached the filesystem root (e.g., '/' or 'C:\\')
+                break
             current = current.parent
-            
-        # Check the final root directory (e.g., '/' or 'C:\\')
-        for marker in markers:
-            if (current / marker).exists():
-                self.logger.debug(f"Project root found at: {current} (marker: '{marker}')")
-                return current
 
         raise FileNotFoundError(f"Project root could not be found by searching upwards from {self} using markers: {markers}")
 
@@ -676,6 +672,7 @@ if __name__ == '__main__':
 
     print(NbPath.self_py_file())
     print(NbPath.self_py_dir())
+    print(NbPath.self_py_file().hash())
     
 
     print(list(cur_dir.rglob_files('*.py', )))
@@ -690,7 +687,8 @@ if __name__ == '__main__':
     print(f'find_project_root: {repr(NbPath().find_project_root())}')
 
 
-    print(NbPath('d:/codes/nb_path/tests','baidu.html').download_from_url('https://www.baidu.com'))
+    print(NbPath('d:/codes/nb_path/tests','baidu.html').download_from_url(
+          'https://www.baidu.com',overwrite=True))
     
     print(NbPath('d:/codes/nb_path/tests','baidu.html').size_human())
 
