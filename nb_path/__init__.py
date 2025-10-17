@@ -39,7 +39,7 @@ class NbPath(_Base, ):
     _lock = threading.Lock()
     logger = getLogger(name='NbPath')
     # Define a clear result type, which is better than returning a tuple
-    GrepResult = namedtuple('GrepResult', ['path', 'line_number', 'line_content', 'match'])
+    GrepResult = namedtuple('GrepResult', ['path', 'line_number', 'line_content', 'match', 'context_lines'])
 
 
     def __new__(cls, *args, **kwargs):
@@ -358,12 +358,14 @@ class NbPath(_Base, ):
              file_pattern: str = '*',
              is_regex: bool = True,
              ignore_case: bool = False,
-             encoding: str = 'utf-8') -> typing.Generator[GrepResult, None, None]:
+             encoding: str = 'utf-8',
+             context: typing.Union[int, typing.Tuple[int, int]] = None) -> typing.Generator[GrepResult, None, None]:
         """
         Searches for a pattern within files, similar to the command-line 'grep'.
 
         This method is a powerful generator that yields results as they are found,
-        making it efficient for searching through large directories.
+        making it memory-efficient for searching through large directories. It now supports
+        displaying context lines around each match.
 
         It can be called on a directory to search recursively, or on a single file.
 
@@ -375,10 +377,14 @@ class NbPath(_Base, ):
                                        If False, performs a simple string search.
             ignore_case (bool, optional): If True, performs a case-insensitive search. Defaults to False.
             encoding (str, optional): The file encoding to use. Defaults to 'utf-8'.
+            context (int or tuple, optional): If specified, includes context lines around the match.
+                                              - An `int` `n` shows `n` lines before and `n` lines after.
+                                              - A `tuple` `(before, after)` shows `before` lines before and `after` lines after.
+                                              Defaults to None.
 
         Yields:
-            GrepResult: A named tuple for each match, containing `(path, line_number, line_content, match)`.
-                        The `match` attribute is the matched string or regex match object.
+            GrepResult: A named tuple for each match, containing `(path, line_number, line_content, match, context_lines)`.
+                        The `match` attribute is the matched string or regex match object. `context_lines` is a list of `(line_num, line_text)` tuples.
 
         Example:
             >>> # 1. Search for a simple string in all .py files in a directory
@@ -390,6 +396,12 @@ class NbPath(_Base, ):
             >>> api_file = NbPath('api/routes.py')
             >>> for result in api_file.grep(r"@app\.route\(['\"](.*?)['\"]\)"):
             ...     print(f"Found endpoint: {result.match.group(1)}")
+            
+            >>> # 3. Search with 2 lines of context before and after
+            >>> for result in src_dir.grep("important_logic", context=2):
+            ...     for num, line in result.context_lines:
+            ...         prefix = ">>" if num == result.line_number else "  "
+            ...         print(f"{prefix} {num:4d}: {line.rstrip()}")
         """
         files_to_search = [self] if self.is_file() else self.rglob_files(file_pattern)
 
@@ -403,43 +415,60 @@ class NbPath(_Base, ):
         else:
             search_str = pattern.lower() if ignore_case else pattern
 
+        # Parse context parameter
+        before, after = 0, 0
+        if context is not None:
+            if isinstance(context, int):
+                before = after = context
+            elif isinstance(context, tuple) and len(context) == 2:
+                before, after = context
+            else:
+                raise ValueError("`context` must be an integer or a tuple of two integers (before, after).")
+
         for file in files_to_search:
             try:
                 with file.open('r', encoding=encoding, errors='ignore') as f:
+                    lines_buffer = []
+                    if before > 0:
+                        from collections import deque
+                        lines_buffer = deque(maxlen=before)
+
                     for line_num, line in enumerate(f, 1):
+                        match_found = False
+                        match_result = None
+
                         if is_regex:
-                            # finditer is efficient for multiple matches on one line
-                            for match_obj in compiled_pattern.finditer(line):
-                                yield self.GrepResult(
-                                    path=file,
-                                    line_number=line_num,
-                                    line_content=line,
-                                    match=match_obj
-                                )
+                            # Use search to find the first match to trigger context collection
+                            match_obj = compiled_pattern.search(line)
+                            if match_obj:
+                                match_found = True
+                                match_result = match_obj
                         else:
                             line_to_search = line.lower() if ignore_case else line
                             if search_str in line_to_search:
-                                yield self.GrepResult(
-                                    path=file,
-                                    line_number=line_num,
-                                    line_content=line,
-                                    match=pattern # For simple string search, match is the string itself
-                                )
+                                match_found = True
+                                match_result = pattern
+
+                        if match_found:
+                            context_lines = list(lines_buffer)
+                            context_lines.append((line_num, line))
+                            
+                            # Read 'after' lines
+                            for _ in range(after):
+                                try:
+                                    after_line = next(f)
+                                    context_lines.append((line_num + 1 + _, after_line))
+                                except StopIteration:
+                                    break
+                            
+                            yield self.GrepResult(file, line_num, line, match_result, context_lines)
+                        
+                        if before > 0:
+                            lines_buffer.append((line_num, line))
+
             except Exception as e:
                 self.logger.warning(f"Could not grep file {file}: {e}")
 
-    
-
-    # # --- Key Change 4: Improve __str__ and __repr__ ---
-    # def __repr__(self) -> str:
-    #     # Provides a clear representation that can be used to recreate the object
-    #     # return f"NbPath('{self.as_posix()}')"
-    #     return super().__repr__()
-        
-    # def __str__(self):
-    #     # The parent class's __str__ is already excellent; it returns a path string suitable for the current OS.
-    #     # We no longer need to customize it unless there's a special requirement.
-    #     return super().__str__()
 
     def hash(self, algorithm: str = 'sha256') -> str:
         """Calculates the hash of the file's content."""
@@ -702,10 +731,14 @@ if __name__ == '__main__':
   
 
     src_dir = NbPath('d:/codes/nb_path')
-    for result in src_dir.grep("error", file_pattern='*.py', is_regex=False):
+    for result in src_dir.grep("error", file_pattern='*.py', is_regex=False,):
           print(f"{result.path.name}:{result.line_number}: {result.line_content.strip()}")
 
-    
+    for result in src_dir.grep("error", context=5, file_pattern='*.py', is_regex=False):
+          print("-" * 20)
+          for num, line_text in result.context_lines:
+                prefix = ">>" if num == result.line_number else "  "
+                sys.stdout.write(f"{prefix} {num:4d}: {line_text.rstrip()}\n")
 
 
 

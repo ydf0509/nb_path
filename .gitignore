@@ -21,6 +21,7 @@ test_frame/my/
 redis_queue_web/
 not_up_git/
 dist/
+build/
 *.egg-info/
 nb_libs/tools/md_dirs/
 tests/md_dirs

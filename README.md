@@ -159,6 +159,13 @@ for result in project_dir.grep("import requests", file_pattern="*.py", is_regex=
 # 2. Use a regular expression to find all Flask routes
 for result in project_dir.grep(r"@app\.route\(['\"](.*?)['\"]\)", file_pattern="*.py"):
     print(f"Found route: {result.match.group(1)}")
+
+# 3. Search with 2 lines of context before and after
+for result in project_dir.grep("important_logic", context=2, file_pattern="*.py"):
+    print("-" * 20)
+    for num, line_text in result.context_lines:
+        prefix = ">>" if num == result.line_number else "  "
+        sys.stdout.write(f"{prefix} {num:4d}: {line_text.rstrip()}\n")
 ```
 
 ### 4. Project and Path Navigation
@@ -275,4 +282,3 @@ Contributions of any kind are welcome! If you have good ideas, feature suggestio
 ## License
 
 This project is open-sourced under the MIT License.
-

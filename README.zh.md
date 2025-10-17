@@ -160,6 +160,13 @@ for result in project_dir.grep("import requests", file_pattern="*.py", is_regex=
 # 2. 使用正则表达式查找所有 Flask 路由
 for result in project_dir.grep(r"@app\.route\(['\"](.*?)['\"]\)", file_pattern="*.py"):
     print(f"发现路由: {result.match.group(1)}")
+
+# 3. 搜索时显示前后各2行上下文
+for result in project_dir.grep("important_logic", context=2, file_pattern="*.py"):
+    print("-" * 20)
+    for num, line_text in result.context_lines:
+        prefix = ">>" if num == result.line_number else "  "
+        sys.stdout.write(f"{prefix} {num:4d}: {line_text.rstrip()}\n")
 ```
 
 ### 4. 项目与路径导航
