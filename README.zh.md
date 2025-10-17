@@ -68,19 +68,22 @@ with NbPath.tempdir(prefix="data-processing-") as workspace:
     print(f"创建临时工作区: {workspace}")
 
     # 核心操作：下载 -> 解压 -> 在解压目录中查找 -> 读取 -> 处理
-    unzipped_dir = (workspace / "downloaded.zip") \
-        .download_from_url(MOCK_URL, overwrite=True) \
+    unzipped_dir = (
+        (workspace / "downloaded.zip")
+        .download_from_url(MOCK_URL, overwrite=True)
         .unzip_to(workspace / "unzipped")
+    )
 
-    processed_content = (workspace / "downloaded.zip") \
-        unzipped_dir.rglob_files("data.txt")[0] \
-        .read_text() \
-        .upper()
+    processed_content = (
+        unzipped_dir.rglob_files("data.txt")[0].read_text().upper()
+    )
 
     # 将处理结果保存到项目的输出目录
-    output_file = (NbPath.self_py_dir() / "output" / "report.txt") \
-        .ensure_parent() \
+    output_file = (
+        (NbPath.self_py_dir() / "output" / "report.txt")
+        .ensure_parent()
         .write_text(processed_content)
+    )
 
     print(f"处理完成，结果已保存至: {output_file}")
 
@@ -149,8 +152,8 @@ test_dirs = src_dir.rglob_dirs("tests")
 #### `grep`：在文件中搜索内容
 
 这是 `nb_path` 的一个“杀手级”功能。
-
 ```python
+import sys
 project_dir = NbPath("./my_project")
 
 # 1. 在所有 .py 文件中搜索字符串 "import requests"
@@ -177,6 +180,10 @@ git_root = NbPath(__file__).find_git_root()
 
 # 根据标记文件（如 'pyproject.toml'）找到项目根目录
 project_root = NbPath().find_project_root()
+
+# 动态获取调用方的文件路径或目录路径
+current_file = NbPath.self_py_file()
+current_dir = NbPath.self_py_dir()
 
 # 展开环境变量和用户目录
 # NbPath('$HOME/.config/my_app').expand() -> /home/user/.config/my_app
@@ -220,6 +227,10 @@ deploy_dir = NbPath("./deploy")
 # 将源目录同步到部署目录
 # delete_extraneous=True 会删除部署目录中多余的文件（镜像同步）
 source_dir.sync_to(deploy_dir, delete_extraneous=True, ignore_patterns=['*.pyc', '__pycache__'])
+
+# 执行一次“演习”(dry run)，查看将要发生什么，但并不实际修改任何文件
+print("\n--- Performing a dry run ---")
+source_dir.sync_to(deploy_dir, delete_extraneous=True, dry_run=True)
 ```
 
 ### 7. 临时文件与目录
@@ -238,6 +249,12 @@ with NbPath.tempdir(prefix="plugin_") as tmp_dir:
     print(f"临时目录: {tmp_dir}")
     (tmp_dir / "plugin.py").write_text("print('hello from plugin')")
     # 此代码块结束时，目录及其所有内容会被自动删除
+
+# 为了调试，你可以禁止自动清理
+with NbPath.tempdir(cleanup=False) as persistent_tmp_dir:
+    persistent_tmp_dir.joinpath("log.txt").write_text("一些调试信息")
+    print(f"这个目录将不会被删除: {persistent_tmp_dir}")
+assert persistent_tmp_dir.exists()
 ```
 
 ### 8. 动态模块导入 (高级功能)
@@ -245,18 +262,16 @@ with NbPath.tempdir(prefix="plugin_") as tmp_dir:
 这是 `nb_path` 最独特的功能之一，对于构建插件系统或动态加载脚本非常有用。
 
 ```python
-from nb_path import NbPathPyImporter
+from nb_path import NbPath
 
 # 将任意 .py 文件作为模块导入
-plugin_path = NbPathPyImporter("./plugins/my_plugin.py")
-my_plugin_module = plugin_path.import_as_module()
+my_plugin_module = NbPath("./plugins/my_plugin.py").as_importer().import_as_module()
 
 # 调用插件中的函数
 my_plugin_module.run()
 
 # 自动导入一个目录下的所有 .py 文件
-plugins_dir = NbPathPyImporter("./plugins")
-plugins_dir.auto_import_pyfiles_in_dir()
+plugins_dir = NbPath("./plugins").as_importer().auto_import_pyfiles_in_dir()
 ```
 
 ### 9. 实用工具

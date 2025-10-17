@@ -68,18 +68,22 @@ with NbPath.tempdir(prefix="data-processing-") as workspace:
     print(f"Created temporary workspace: {workspace}")
 
     # Core operations: download -> unzip -> find in unzipped dir -> read -> process
-    unzipped_dir = (workspace / "downloaded.zip") \
-        .download_from_url(MOCK_URL, overwrite=True) \
+    unzipped_dir = (
+        (workspace / "downloaded.zip")
+        .download_from_url(MOCK_URL, overwrite=True)
         .unzip_to(workspace / "unzipped")
+    )
 
-    processed_content = unzipped_dir.rglob_files("data.txt")[0] \
-        .read_text() \
-        .upper()
+    processed_content = (
+        unzipped_dir.rglob_files("data.txt")[0].read_text().upper()
+    )
 
     # Save the processed result to the project's output directory
-    output_file = (NbPath.self_py_dir() / "output" / "report.txt") \
-        .ensure_parent() \
+    output_file = (
+        (NbPath.self_py_dir() / "output" / "report.txt")
+        .ensure_parent()
         .write_text(processed_content)
+    )
 
     print(f"Processing complete, result saved to: {output_file}")
 
@@ -148,8 +152,8 @@ test_dirs = src_dir.rglob_dirs("tests")
 #### `grep`: Search for Content in Files
 
 This is one of `nb_path`'s "killer features".
-
 ```python
+import sys
 project_dir = NbPath("./my_project")
 
 # 1. Search for the string "import requests" in all .py files
@@ -176,6 +180,10 @@ git_root = NbPath(__file__).find_git_root()
 
 # Find the project root based on marker files (e.g., 'pyproject.toml')
 project_root = NbPath().find_project_root()
+
+# Dynamically get the caller's file path or directory path
+current_file = NbPath.self_py_file()
+current_dir = NbPath.self_py_dir()
 
 # Expand environment variables and user directories
 # NbPath('$HOME/.config/my_app').expand() -> /home/user/.config/my_app
@@ -219,6 +227,10 @@ deploy_dir = NbPath("./deploy")
 # Synchronize the source directory to the deployment directory
 # delete_extraneous=True will delete extra files in the destination (mirroring)
 source_dir.sync_to(deploy_dir, delete_extraneous=True, ignore_patterns=['*.pyc', '__pycache__'])
+
+# Perform a dry run to see what would change without actually modifying any files
+print("\n--- Performing a dry run ---")
+source_dir.sync_to(deploy_dir, delete_extraneous=True, dry_run=True)
 ```
 
 ### 7. Temporary Files and Directories
@@ -237,6 +249,12 @@ with NbPath.tempdir(prefix="plugin_") as tmp_dir:
     print(f"Temporary directory: {tmp_dir}")
     (tmp_dir / "plugin.py").write_text("print('hello from plugin')")
     # The directory and all its contents are automatically deleted here
+
+# For debugging, you can prevent cleanup
+with NbPath.tempdir(cleanup=False) as persistent_tmp_dir:
+    persistent_tmp_dir.joinpath("log.txt").write_text("some debug info")
+    print(f"This directory will NOT be deleted: {persistent_tmp_dir}")
+assert persistent_tmp_dir.exists()
 ```
 
 ### 8. Dynamic Module Import (Advanced Feature)

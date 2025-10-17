@@ -157,7 +157,8 @@ class NbPath(_Base, ):
     def sync_to(self,
                 destination: typing.Union[os.PathLike, str],
                 delete_extraneous: bool = False,
-                ignore_patterns: typing.List[str] = None):
+                ignore_patterns: typing.List[str] = None,
+                dry_run: bool = False):
         """
         Intelligently synchronizes this directory to a destination directory (like rsync).
 
@@ -169,13 +170,19 @@ class NbPath(_Base, ):
                                exist in the source directory (Mirroring). Defaults to False.
             ignore_patterns: A list of glob patterns to ignore during sync,
                              e.g., ['*.pyc', '__pycache__'].
+            dry_run: If True, prints the operations that would be performed without
+                     actually executing them. Defaults to False.
         """
         if not self.is_dir():
             raise NotADirectoryError(f"Source '{self}' is not a directory.")
 
         dest_path = NbPath(destination)
-        dest_path.mkdir(exist_ok=True)
-        
+        if not dry_run:
+            dest_path.mkdir(exist_ok=True)
+        else:
+            if not dest_path.exists():
+                self.logger.info(f"[DRY RUN] Would create directory: {dest_path}")
+
         source_files = {p.relative_to(self) for p in self.rglob_files('*')}
         dest_files = {p.relative_to(dest_path) for p in dest_path.rglob_files('*')}
 
@@ -189,16 +196,22 @@ class NbPath(_Base, ):
                 continue
 
             if not dest_file.exists() or source_file.stat().st_mtime > dest_file.stat().st_mtime:
-                self.logger.debug(f"Syncing: {source_file} -> {dest_file}")
-                dest_file.ensure_parent()
-                shutil.copy2(source_file, dest_file)
+                if not dry_run:
+                    self.logger.debug(f"Syncing: {source_file} -> {dest_file}")
+                    dest_file.ensure_parent()
+                    shutil.copy2(source_file, dest_file)
+                else:
+                    self.logger.info(f"[DRY RUN] Would copy: {source_file} -> {dest_file}")
 
         # 2. Delete extraneous files if requested
         if delete_extraneous:
             for rel_path in (dest_files - source_files):
                 dest_file = dest_path / rel_path
-                self.logger.debug(f"Deleting extraneous file: {dest_file}")
-                dest_file.delete(missing_ok=True)
+                if not dry_run:
+                    self.logger.debug(f"Deleting extraneous file: {dest_file}")
+                    dest_file.delete(missing_ok=True)
+                else:
+                    self.logger.info(f"[DRY RUN] Would delete extraneous file: {dest_file}")
 
     
     def download_from_url(self, url: str, overwrite: bool = False, **kwargs) -> 'NbPath':
@@ -255,11 +268,19 @@ class NbPath(_Base, ):
 
     @classmethod
     def self_py_file(cls) -> 'NbPath':
-        return cls(__file__)
+        """
+        Returns an NbPath object representing the file path of the caller.
+        This is a dynamic replacement for `NbPath(__file__)` that works from any module.
+        """
+        # sys._getframe(0) is the frame of self_py_file itself.
+        # sys._getframe(1) is the frame of the caller.
+        caller_filename = sys._getframe(1).f_code.co_filename
+        return cls(caller_filename)
     
     @classmethod
     def self_py_dir(cls) -> 'NbPath':
-        return cls.self_py_file().parent
+        caller_filename = sys._getframe(1).f_code.co_filename
+        return cls(caller_filename).parent
         
     def find_git_root(self) -> 'NbPath':
         """
@@ -484,7 +505,7 @@ class NbPath(_Base, ):
 
     @classmethod
     @contextmanager
-    def tempfile(cls, suffix: str = None, prefix: str = None, dir: typing.Union[os.PathLike, str] = None, text: bool = False) -> typing.Generator['NbPath', None, None]:
+    def tempfile(cls, suffix: str = None, prefix: str = None, dir: typing.Union[os.PathLike, str] = None, text: bool = False, cleanup: bool = True) -> typing.Generator['NbPath', None, None]:
         """Creates a temporary file as a context manager, returning an NbPath object.
 
         This is a powerful, object-oriented replacement for parts of Python's `tempfile` module.
@@ -499,6 +520,8 @@ class NbPath(_Base, ):
             text (bool, optional): If True, the file is opened in text mode. If False (default),
                                    it's opened in binary mode. This only affects the initial file object
                                    and does not restrict subsequent operations on the NbPath object.
+            cleanup (bool, optional): If True (default), the file is automatically deleted on exiting
+                                      the context. If False, the file is kept for debugging.
 
         Yields:
             NbPath: An NbPath object pointing to the newly created temporary file.
@@ -537,15 +560,16 @@ class NbPath(_Base, ):
             yield temp_path
         finally:
             # Robustly delete the file if it still exists upon exit.
-            if temp_path.exists():
-                try:
-                    temp_path.delete()
-                except Exception as e:
-                    cls.logger.error(f"Failed to delete temporary file {temp_path}: {e}")
+            if cleanup:
+                if temp_path.exists():
+                    try:
+                        temp_path.delete()
+                    except Exception as e:
+                        cls.logger.error(f"Failed to delete temporary file {temp_path}: {e}")
 
     @classmethod
     @contextmanager
-    def tempdir(cls, suffix: str = None, prefix: str = None, dir: typing.Union[os.PathLike, str] = None) -> typing.Generator['NbPath', None, None]:
+    def tempdir(cls, suffix: str = None, prefix: str = None, dir: typing.Union[os.PathLike, str] = None, cleanup: bool = True) -> typing.Generator['NbPath', None, None]:
         """Creates a temporary directory as a context manager, returning an NbPath object.
 
         This is a superior, object-oriented alternative to `tempfile.TemporaryDirectory`.
@@ -556,6 +580,8 @@ class NbPath(_Base, ):
             prefix (str, optional): If specified, the directory name will begin with that prefix. Defaults to None.
             dir (os.PathLike or str, optional): If specified, the directory will be created in that directory.
                                                 If not specified, a default temporary directory is used.
+            cleanup (bool, optional): If True (default), the directory and its contents are automatically
+                                      deleted on exiting the context. If False, it is kept for debugging.
 
         Yields:
             NbPath: An NbPath object pointing to the newly created temporary directory.
@@ -582,9 +608,20 @@ class NbPath(_Base, ):
         """
         # The standard library's TemporaryDirectory is already robust. We just wrap it
         # to yield our enhanced NbPath object instead of a plain string.
-        with tempfile.TemporaryDirectory(suffix=suffix, prefix=prefix, dir=dir) as temp_dir_str:
+        if cleanup:
+            with tempfile.TemporaryDirectory(suffix=suffix, prefix=prefix, dir=dir) as temp_dir_str:
+                yield cls(temp_dir_str)
+        else:
+            temp_dir_str = tempfile.mkdtemp(suffix=suffix, prefix=prefix, dir=dir)
             yield cls(temp_dir_str)
 
+
+    def as_importer(self) -> 'NbPathPyImporter':
+        """
+        Returns an NbPathPyImporter instance of the current path,
+        unlocking dynamic module import capabilities.
+        """
+        return NbPathPyImporter(self)
 
 
 
@@ -643,6 +680,9 @@ class NbPathPyImporter(NbPath):
             if py_file.resolve() == caller_file:
                 self.logger.warning(f'Skipping import of the calling module itself: {py_file}')
                 continue
+            # if py_file.name == '__init__.py':
+            #     self.logger.debug(f'Skipping import of package initializer: {py_file}')
+            #     continue
             try:
                 
                 py_file.import_as_module()
@@ -708,7 +748,7 @@ if __name__ == '__main__':
     
 
     NbPath(r'D:\codes\nb_path\tests\temps').zip_to(NbPath(r'D:\codes\nb_path\tests','temps_zip.zip'),overwrite=True)
-    print(NbPath(r'D:\codes\nb_path\tests','temps_zip.zip').unzip_to(NbPath('d:/codes/nb_path/tests','temps_zip_dir')))
+    print(NbPath(r'D:\codes\nb_path\tests','temps_zip.zip').unzip_to(NbPath('d:/codes/nb_path/tests','temps_unzip')))
     
     print(NbPath('~/.config').expand())
 
@@ -724,21 +764,18 @@ if __name__ == '__main__':
 
     print(NbPathPyImporter(r'D:\codes\nb_path\tests\m1.py').import_as_module())
 
+    print(NbPathPyImporter(r'D:\codes\nb_path\tests\m1.py').get_module_name())
+
     NbPathPyImporter(r'D:\codes\nb_path\tests\pacb').auto_import_pyfiles_in_dir()
 
-    print(NbPathPyImporter(r'D:\codes\nb_path\tests\m1.py').get_module_name())
+   
 
   
 
-    src_dir = NbPath('d:/codes/nb_path')
-    for result in src_dir.grep("error", file_pattern='*.py', is_regex=False,):
-          print(f"{result.path.name}:{result.line_number}: {result.line_content.strip()}")
+    
 
-    for result in src_dir.grep("error", context=5, file_pattern='*.py', is_regex=False):
-          print("-" * 20)
-          for num, line_text in result.context_lines:
-                prefix = ">>" if num == result.line_number else "  "
-                sys.stdout.write(f"{prefix} {num:4d}: {line_text.rstrip()}\n")
+    NbPath('d:/codes/nb_path/tests/temps').sync_to('d:/codes/nb_path/tests/temps_sync', dry_run=True)
+    NbPath('d:/codes/nb_path/tests/temps').sync_to('d:/codes/nb_path/tests/temps_sync', dry_run=False)
 
 
 
