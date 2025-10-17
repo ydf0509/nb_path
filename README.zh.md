@@ -1,6 +1,10 @@
 # nb_path: 赋予文件系统操作超能力的 Python 路径库
 
 <p align="center">
+  <a href="README.md">[English](README.md)</a> | <a href="README.zh.md">[简体中文](README.zh.md)</a>
+</p>
+
+<p align="center">
   <a href="https://pypi.org/project/nb-path/"><img src="https://img.shields.io/pypi/v/nb-path.svg" alt="pypi"></a>
   <a href="https://pypi.org/project/nb-path/"><img src="https://img.shields.io/pypi/pyversions/nb-path.svg" alt="pyversions"></a>
   <a href="https://github.com/ydf0509/nb_path"><img src="https://img.shields.io/github/stars/ydf0509/nb_path" alt="github stars"></a>

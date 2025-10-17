@@ -1,28 +1,28 @@
 import setuptools
 
-# 从 README.zh.md 文件中读取长描述
-with open("README.zh.md", "r", encoding="utf-8") as fh:
+# Read the long description from the README.md file
+with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="nb-path",  # 包名，在 PyPI 上必须是唯一的
-    version="1.9",  # 版本号，每次发布新版本时需要增加
-    author="ydf0509",  # 您的名字或昵称
-    author_email="your_email@example.com",  # 您的联系邮箱
-    description="一个赋予文件系统操作超能力的 Python 路径库",  # 简短描述
-    long_description=long_description,  # 详细描述，来自 README
-    long_description_content_type="text/markdown",  # 描述文件类型
-    url="https://github.com/ydf0509/nb_path",  # 项目的 GitHub URL
-    packages=setuptools.find_packages(),  # 自动查找项目中的所有包
+    name="nb-path",  # Package name, must be unique on PyPI
+    version="2.0",  # Version number, needs to be incremented for each new release
+    author="ydf0509",  # Your name or nickname
+    author_email="your_email@example.com",  # Your contact email
+    description="A Python path library that gives filesystem operations superpowers",  # Short description
+    long_description=long_description,  # Detailed description, from README
+    long_description_content_type="text/markdown",  # Description file type
+    url="https://github.com/ydf0509/nb_path",  # Project's GitHub URL
+    packages=setuptools.find_packages(),  # Automatically find all packages in the project
     
-    # 定义可选依赖项
-    # 用户可以通过 pip install nb-path[all] 来安装所有额外功能
+    # Define optional dependencies
+    # Users can install all extra features with: pip install nb-path[all]
     extras_require={
-        'download': ['requests', 'tqdm'],  # `download_from_url` 方法需要这些依赖
+        'download': ['requests', 'tqdm'],  # The `download_from_url` method requires these dependencies
         'all': ['requests', 'tqdm'],
     },
     
-    # 对包进行分类，有助于在 PyPI 上被搜索到
+    # Classify the package to help it be found on PyPI
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python :: 3",
@@ -38,6 +38,6 @@ setuptools.setup(
         "Intended Audience :: Developers",
     ],
     
-    # 指定项目要求的 Python 版本
+    # Specify the required Python version for the project
     python_requires='>=3.6',
 )
