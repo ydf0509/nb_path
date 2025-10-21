@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nb-path",  # Package name, must be unique on PyPI
-    version="2.2",  # Version number, needs to be incremented for each new release
+    version="2.3",  # Version number, needs to be incremented for each new release
     author="ydf0509",  # Your name or nickname
     author_email="your_email@example.com",  # Your contact email
     description="A Python path library that gives filesystem operations superpowers",  # Short description
@@ -18,8 +18,9 @@ setuptools.setup(
     # Define optional dependencies
     # Users can install all extra features with: pip install nb-path[all]
     extras_require={
-        'download': ['requests', 'tqdm'],  # The `download_from_url` method requires these dependencies
-        'all': ['requests', 'tqdm'],
+        'download': ['requests', 'tqdm'],  # For the download_from_url() method
+        'lock': ['filelock'],              # For the lock() method
+        'all': ['requests', 'tqdm', 'filelock'],
     },
     
     # Classify the package to help it be found on PyPI

@@ -27,9 +27,11 @@ Its design philosophy is: **to turn all common path-related operations into meth
 | **Content Search (grep)** | ❌ | ✅ | `grep()` method for efficient text search in files or directories |
 | **Intelligent Dir Sync** | ❌ | ✅ | `sync_to()` method for `rsync`-style incremental synchronization |
 | **Network File Download** | ❌ | ✅ | `download_from_url()` method to download a file directly to the path |
+| **AI Context Generation** | ❌ | ✅ | `AiMdGenerator` to build structured context for LLMs |
 | **Project Root Discovery** | ❌ | ✅ | `find_project_root()` and `find_git_root()` to end path headaches |
 | **Dynamic Module Import** | ❌ | ✅ | `import_as_module()` is a powerful tool for plugin development |
 | **Convenient Temp Files/Dirs** | ❌ | ✅ | `tempfile()` and `tempdir()` context managers with auto-cleanup |
+| **Process-Safe File Locking** | ❌ | ✅ | `lock()` context manager for safe concurrent file access |
 | **Utility Toolkit** | ❌ | ✅ | Built-in utilities like `hash()`, `size_human()`, `expand()` |
 
 ## ✨ Core Features
@@ -40,6 +42,7 @@ Its design philosophy is: **to turn all common path-related operations into meth
 - **Built-in `grep` Functionality**: The `grep()` method allows for efficient text/regex searches in files or entire directories.
 - **Intelligent Directory Sync**: The `sync_to()` method, a lightweight `rsync`, can intelligently synchronize two directories.
 - **Network File Download**: `download_from_url()` downloads a file from a URL directly to the specified path.
+- **AI-Powered Development**: The `AiMdGenerator` class to intelligently package your entire project into a single, structured Markdown file, supercharging your collaboration with large language models (LLMs).
 - **Project Root Discovery**: `find_project_root()` and `find_git_root()` eliminate tedious relative path calculations.
 - **Dynamic Module Import**: `import_as_module()` can dynamically import any `.py` file as a module, a powerful tool for plugin-based development.
 - **Convenient Temp Files/Dirs**: `tempfile()` and `tempdir()` context managers return fully-featured `NbPath` objects and handle cleanup automatically.
@@ -91,6 +94,65 @@ print("Temporary workspace has been automatically cleaned up.")
 ```
 
 This example perfectly demonstrates the core advantages of `nb_path`: **high cohesion, high readability, and high efficiency.**
+
+## 🤖 AI Collaboration: `AiMdGenerator`
+
+In the age of AI, providing complete and structured context to Large Language Models (LLMs) is crucial for getting high-quality responses. `AiMdGenerator` is a revolutionary tool designed specifically for this purpose.
+
+It transforms the tedious, error-prone task of manually copying and pasting code into a single, elegant, chainable command. It intelligently packages your project's documentation, source code, and tests into a single, well-organized Markdown file that LLMs love.
+
+**Why is this a game-changer for AI collaboration?**
+
+- **God's-eye View**: The generated Markdown includes a file manifest and clear boundaries, allowing the AI to understand your project's architecture instantly.
+- **Information Integrity**: The AI gets complete, accurate source code, avoiding the context loss that plagues manual methods.
+- **Enhanced Security**: The `use_gitignore=True` feature is a critical security barrier, automatically excluding sensitive files (like `.env` or local configs) from the context.
+
+Here's how you can package your entire project for an AI review:
+
+```python
+from nb_path import AiMdGenerator
+
+# Package docs, source code, and tests into one file for the AI
+(
+    AiMdGenerator("project_context_for_ai.md")
+    .clear_text()  # Clear the old file
+    .merge_from_files(
+        relative_file_name_list=["README.md"],
+         project_root="/path/to/your/proj",
+        as_title="Project Documentation",
+    )
+    .merge_from_dir(
+         project_root="/path/to/your/proj",
+        relative_dir_name="nb_path", # The main source code directory
+        as_title="Project Source Code",
+        use_gitignore=True,  # Automatically use .gitignore rules
+        should_include_suffixes=[".py"],
+    )
+    .merge_from_dir(
+         project_root="/path/to/your/proj",
+        relative_dir_name="tests", # The tests directory
+        as_title="Project Tests",
+        use_gitignore=True,
+        should_include_suffixes=[".py"],
+        excluded_dir_name_list=["tests/markdown_gen_files"],
+    )
+)
+```
+
+Now, you can simply provide the `project_context_for_ai.md` file to your favorite LLM and get a much more insightful and accurate analysis.
+
+### Why Not Just Ask the AI in the IDE Instead of Generating a Markdown File?
+
+This is a very insightful question that touches upon a core pain point of current AI-assisted programming.
+
+In programming IDEs (like Cursor or Trace), AI assistants, in order to control high token costs, typically do not read all of your project's code at once. They might adopt a chunk-based reading strategy (e.g., reading 200 lines at a time), which means that to fully understand a feature, the AI may need to perform multiple, fragmented readings. This mechanism is designed to prevent users from submitting tens of thousands of lines of code at once and causing costs to spiral, but the trade-off is that the AI's context is fragmented, making it prone to "hallucinations" or providing inaccurate answers.
+
+`AiMdGenerator` solves this problem. The single, structured Markdown file it generates can be uploaded to powerful models with massive context windows (like the 1 million token context of the Gemini model in Google AI Studio). This enables the AI to:
+
+- **Perform a Full, One-shot Read**: The AI can load the entire project's context completely and at once, forming a global perspective instead of seeing only a small part of the picture.
+- **Stronger Reasoning, Fewer Hallucinations**: With the full context, the AI's reasoning chain is uninterrupted. It can accurately understand the usage of obscure third-party libraries and the internal logic of complex frameworks, thus providing extremely accurate, almost hallucination-free answers and code suggestions.
+
+In short, `AiMdGenerator` is the best way to "feed" your project code to the most powerful AI brains (like Gemini), and it's a crucial step towards achieving high-quality AI-assisted development.
 
 ## 📖 API Guide
 

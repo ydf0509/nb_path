@@ -27,9 +27,11 @@
 | **内容搜索 (grep)** | ❌ | ✅ | `grep()` 方法，在文件或目录中进行高效文本搜索 |
 | **目录智能同步** | ❌ | ✅ | `sync_to()` 方法，实现 `rsync` 风格的增量同步 |
 | **网络文件下载** | ❌ | ✅ | `download_from_url()` 方法，直接将文件下载到路径 |
+| **AI 上下文生成** | ❌ | ✅ | `AiMdGenerator`，为大语言模型构建结构化上下文 |
 | **项目根目录发现** | ❌ | ✅ | `find_project_root()` 和 `find_git_root()`，告别路径烦恼 |
 | **动态模块导入** | ❌ | ✅ | `import_as_module()`，是插件化开发的利器 |
 | **便捷的临时文件/目录** | ❌ | ✅ | `tempfile()` 和 `tempdir()` 上下文管理器，自动清理 |
+| **进程安全文件锁** | ❌ | ✅ | `lock()` 上下文管理器，用于并发文件访问 |
 | **实用工具集** | ❌ | ✅ | 内置 `hash()`, `size_human()`, `expand()` 等多种便捷工具 |
 
 ## ✨ 核心特性
@@ -40,6 +42,7 @@
 - **内置 `grep` 功能**: `grep()` 方法，可在文件或整个目录中进行高效的文本/正则搜索。
 - **目录智能同步**: `sync_to()` 方法，一个轻量级的 `rsync`，可智能同步两个目录。
 - **网络文件下载**: `download_from_url()`，直接将文件从 URL 下载到指定路径。
+- **AI 驱动开发**: `AiMdGenerator` 类，可将你的整个项目智能打包成一个结构化的 Markdown 文件，极大地增强你与大语言模型（LLM）的协作效率。
 - **项目根目录发现**: `find_project_root()` 和 `find_git_root()`，告别烦人的相对路径计算。
 - **动态模块导入**: `import_as_module()`，可以将任何 `.py` 文件作为模块动态导入，是插件化开发的利器。
 - **便捷的临时文件/目录**: `tempfile()` 和 `tempdir()` 上下文管理器，返回功能完备的 `NbPath` 对象，自动清理。
@@ -91,6 +94,65 @@ print("临时工作区已自动清理。")
 ```
 
 这个例子完美展示了 `nb_path` 的核心优势：**高内聚、高可读、高效率**。
+
+## 🤖 AI 协作神器: `AiMdGenerator`
+
+在 AI 时代，向大语言模型（LLM）提供完整、结构化的上下文，是获得高质量回答的关键。`AiMdGenerator` 正是为此而生的革命性工具。
+
+它将手动复制粘贴代码这一繁琐、易错的过程，变成了一行优雅的链式调用。它能智能地将你的项目文档、源代码、测试用例打包成一个组织良好的 Markdown 文件，这正是 AI 最喜欢的格式。
+
+**为什么这是 AI 协作的“游戏规则改变者”？**
+
+- **提供上帝视角**: 生成的 Markdown 包含文件清单和清晰的边界，使 AI 能立即理解你的项目架构。
+- **信息完整性**: AI 得到的是完整、准确的源代码，避免了因手动操作导致的信息丢失。
+- **增强安全性**: `use_gitignore=True` 功能是一个至关重要的安全屏障，它会自动排除 `.env` 等包含敏感信息的文件。
+
+下面展示了如何将你的整个项目打包，以便进行 AI 代码审查：
+
+```python
+from nb_path import AiMdGenerator
+
+# 将文档、源码、测试打包成一个文件，提供给 AI
+(
+    AiMdGenerator("project_context_for_ai.md")
+    .clear_text()  # 清空旧文件
+    .merge_from_files(
+        relative_file_name_list=["README.md"],
+         project_root="/path/to/your/proj",
+        as_title="项目文档",
+    )
+    .merge_from_dir(
+         project_root="/path/to/your/proj",
+        relative_dir_name="nb_path", # 主源码目录
+        as_title="项目源码",
+        use_gitignore=True,  # 自动使用 .gitignore 规则
+        should_include_suffixes=[".py"],
+    )
+    .merge_from_dir(
+         project_root="/path/to/your/proj",
+        relative_dir_name="tests", # 测试目录
+        as_title="项目测试",
+        use_gitignore=True,
+        should_include_suffixes=[".py"],
+        excluded_dir_name_list=["tests/markdown_gen_files"],
+    )
+)
+```
+
+现在，你只需将生成的 `project_context_for_ai.md` 文件提供给你最喜欢的 LLM，就能获得远比以前更深入、更准确的分析。
+
+### 为什么不直接在 IDE 中提问 AI，而是要生成 Markdown 文件？
+
+这是一个非常深刻的问题，触及了当前 AI 辅助编程的核心痛点。
+
+在编程 IDE（如 Cursor、Trace）中，AI 助手为了控制高昂的 Token 成本，通常不会一次性阅读你项目的所有代码。它们可能会采取分块阅读的策略（例如，每 200 行作为一个代码块），这意味着要完整理解一个功能，AI 可能需要进行多次、零散的阅读。这种机制旨在防止用户一次性提交数万行代码导致费用失控，但其代价是 AI 的上下文是碎片化的，容易产生“幻觉”或给出不准确的回答。
+
+而 `AiMdGenerator` 解决了这个问题。它生成的单一、结构化的 Markdown 文件，可以被上传到拥有超大上下文窗口（如 Google AI Studio 中 Gemini 模型的 100万 Token 上下文）的强大模型中。这使得 AI 能够：
+
+- **一次性全量阅读**: AI 可以完整地、一次性地加载整个项目的上下文，形成全局视角，而不是管中窥豹。
+- **推理能力更强，幻觉更少**: 拥有了完整的上下文，AI 的推理链条不会中断，能够准确理解冷门第三方库的用法和复杂框架的内部逻辑，从而给出极其准确、几乎没有幻觉的回答和代码建议。
+
+简而言之，`AiMdGenerator` 是将你的项目代码“喂”给最强大脑（如 Gemini）的最佳方式，是实现高质量 AI 辅助开发的关键一步。
 
 ## 📖 API 使用指南
 

@@ -26,3 +26,7 @@ build/
 nb_libs/tools/md_dirs/
 tests/md_dirs
 __pycache__/
+
+test_git_ignore1.py
+markdown_gen_files_git_ignore/
+tests/markdown_gen_files_git_ignore/gen_ai_mds/
