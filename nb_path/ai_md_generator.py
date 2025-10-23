@@ -115,6 +115,45 @@ class AiMdGenerator(NbPath):
         ".psscx": "powershell",
     }
 
+    def _generate_markdown_header(self, as_title: str, file_text_list: list) -> list:
+        """生成包含文件树和文件列表的 Markdown 头部"""
+        str_list = [f"# markdown content namespace: {as_title} \n\n"]
+
+        # 1. 生成文件树
+        str_list.append("## File Tree\n\n")
+        str_list.append("```\n")
+        tree = {}
+        sorted_paths = sorted([item[1] for item in file_text_list])
+        for path in sorted_paths:
+            parts = path.split('/')
+            current_level = tree
+            for part in parts:
+                if part not in current_level:
+                    current_level[part] = {}
+                current_level = current_level[part]
+
+        def format_tree(node, prefix=""):
+            lines = []
+            entries = sorted(node.keys())
+            for i, entry in enumerate(entries):
+                connector = "├── " if i < len(entries) - 1 else "└── "
+                lines.append(f"{prefix}{connector}{entry}")
+                if node[entry]:
+                    extension = "│   " if i < len(entries) - 1 else "    "
+                    lines.extend(format_tree(node[entry], prefix + extension))
+            return lines
+
+        str_list.extend(format_tree(tree))
+        str_list.append("\n```\n\n---\n\n")
+
+        # 2. 生成文件列表
+        str_list.append("## Included Files\n\n")
+        for _, relative_file_name_posix, _, _ in file_text_list:
+            str_list.append(f"- `{relative_file_name_posix}`\n")
+        str_list.append("\n---\n\n")
+
+        return str_list
+
     def merge_from_files(
         self,
         project_root: typing.Union[os.PathLike, str],
@@ -140,12 +179,9 @@ class AiMdGenerator(NbPath):
                 raise ValueError(f"File {file} is not a text file.")
         str_list = []
         if file_text_list:
-            str_list.append(f"# markdown content namespace: {as_title} \n\n")
-            # 1. Add a Table of Contents for the AI to get an overview.
-            str_list.append("## Included Files\n\n")
-            for _, relative_file_name_posix, _, _ in file_text_list:
-                str_list.append(f"- `{relative_file_name_posix}`\n")
-            str_list.append("\n---\n\n")
+            # 调用新函数生成头部
+            str_list.extend(self._generate_markdown_header(as_title, file_text_list))
+
 
         for file, relative_file_name_posix, suffix, text in file_text_list:
             # 2. Remove the debug print statement.
@@ -159,8 +195,8 @@ class AiMdGenerator(NbPath):
                 lang = self.suffix__lang_map.get(suffix, "text")
                 str_list.append(f"```{lang}\n{text}\n```\n")
 
-            str_list.append(f"**code file end: {relative_file_name_posix}**")
-            str_list.append("-------------------------------------------\n\n")
+            str_list.append(f"**code file end: {relative_file_name_posix}**\n")
+            str_list.append("---\n\n")
         # self.write_text('\n'.join(str_list))
         with self.open(mode="a", encoding="utf-8") as f:
             f.write("\n".join(str_list))
@@ -208,6 +244,13 @@ class AiMdGenerator(NbPath):
 
         relative_paths_to_include = []
         for path_obj in target_dir_path.rglob("*"):
+            # Automatically exclude directories starting with a dot at the project root
+            try:
+                first_part = path_obj.relative_to(project_root_path).parts[0]
+                if first_part.startswith('.'):
+                    continue
+            except (ValueError, IndexError):
+                continue
             # Check if the path is within any of the excluded directories
             is_in_excluded_dir = any(
                 path_obj == excluded_dir or excluded_dir in path_obj.parents

@@ -161,6 +161,10 @@ class NbPath(
             self.logger.info(json.dumps(info,ensure_ascii=False))
         return info
 
+    def show_textfile_info(self):
+        self.get_textfile_info(is_show_info=True)
+        return self
+
     def size(self) -> int:
         """Returns the file size in bytes. Returns 0 if it is a directory."""
         if self.is_file():

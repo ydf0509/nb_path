@@ -467,7 +467,26 @@ class AiMdGenerator(NbPath):
         ... )
     """
 
+    """cn description
+    一个极其强大的、为 AI 协作而生的上下文生成器。
 
+    此类旨在彻底改变开发者与大语言模型（LLM）的交互方式。它能够智能地将多个项目源文件
+    合并成一个结构清晰、上下文丰富的单一 Markdown 文件，从而为 AI 提供一个完美、全面的项目快照。
+
+    对 AI 大模型的好处是巨大的：
+    1.  **提供上帝视角**：通过文件清单、清晰的文件边界和相对路径，AI 能够轻松构建出项目的
+        整体架构，理解文件间的依赖和引用关系，而不是盲人摸象。
+    2.  **确保信息的完整与准确**：AI 得到的是未经删减的、完整的源文件内容，避免了因手动
+        复制粘贴导致的格式混乱、内容遗漏或上下文缺失，从而能给出更精准的分析和建议。
+    3.  **提升安全性**：内置的 `use_gitignore` 功能是一道关键的安全屏障。它能自动忽略
+        `.env`、本地配置等包含敏感信息（如 API 密钥、数据库密码）的文件，让你在分享代码
+        时无需担心意外泄露秘密。
+
+    其核心方法 `merge_from_files` 和 `merge_from_dir` 提供了极高的灵活性，结合 `nb_path`
+    优雅的链式调用，使得创建一个高质量的 AI 上下文从繁琐、易错的手工劳动，变成了一行
+    赏心悦目的代码。
+
+    """
 
     suffix__lang_map = {
         ".py": "python",
@@ -595,6 +614,13 @@ class AiMdGenerator(NbPath):
 
         relative_paths_to_include = []
         for path_obj in target_dir_path.rglob("*"):
+            # Automatically exclude directories starting with a dot at the project root
+            try:
+                first_part = path_obj.relative_to(project_root_path).parts[0]
+                if first_part.startswith('.'):
+                    continue
+            except (ValueError, IndexError):
+                continue
             # Check if the path is within any of the excluded directories
             is_in_excluded_dir = any(
                 path_obj == excluded_dir or excluded_dir in path_obj.parents
@@ -671,6 +697,7 @@ import logging
 from logging import getLogger
 # from typing_extensions import Self
 from operator import is_
+from tkinter import N
 import zipfile
 import os
 import shutil
@@ -778,14 +805,14 @@ class NbPath(
     def write_text(self, data: str, encoding: str = "utf-8", errors: str = None) -> int:
         return super().write_text(data, encoding=encoding, errors=errors)
 
+    def append_text(self, data: str, encoding: str = "utf-8",errors: str = None):
+        with self.open(mode='a', encoding=encoding) as f:
+            f.write(data)
+     
     def merge_text_from_files(self, file_list: typing.List[typing.Union[os.PathLike, str]], separator: str = "\n") :
-        """
-        Merges the content of the given files into the current markdown file.
-        """
         for file in file_list:
-            self.write_text(file.read_text() + separator)
-        return self
-
+            self.append_text(NbPath(file).read_text() + separator)
+        
     def get_textfile_info(self, encoding: str = "utf-8",is_show_info: bool=False) -> dict:
         """
         Efficiently gets information about a text file, including line and character counts.
@@ -820,6 +847,10 @@ class NbPath(
         if is_show_info:
             self.logger.info(json.dumps(info,ensure_ascii=False))
         return info
+
+    def show_textfile_info(self):
+        self.get_textfile_info(is_show_info=True)
+        return self
 
     def size(self) -> int:
         """Returns the file size in bytes. Returns 0 if it is a directory."""
