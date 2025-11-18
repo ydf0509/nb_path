@@ -9,8 +9,6 @@ import json
 import logging
 from logging import getLogger
 # from typing_extensions import Self
-from operator import is_
-from tkinter import N
 import zipfile
 import os
 import shutil
@@ -21,6 +19,9 @@ from pathlib import Path, WindowsPath, PosixPath
 import tempfile
 import re
 from collections import namedtuple
+import chardet
+
+from nb_log import nb_log
 
 
 # --- Key Change 1: Dynamically select the correct base class ---
@@ -41,7 +42,8 @@ class NbPath(
 
     _modules_cache = {}
     _lock = threading.Lock()
-    logger = getLogger(name="NbPath")
+    # logger = getLogger(name="NbPath")
+    logger = nb_log.get_logger('NbPath')
     # Define a clear result type, which is better than returning a tuple
     GrepResult = namedtuple(
         "GrepResult", ["path", "line_number", "line_content", "match", "context_lines"]
@@ -118,6 +120,29 @@ class NbPath(
     def write_text(self, data: str, encoding: str = "utf-8", errors: str = None) -> int:
         return super().write_text(data, encoding=encoding, errors=errors)
 
+    def chardet_detect(self) -> dict:
+        return chardet.detect(self.read_bytes())
+    
+    def write_text_with_utf8_bom(self, data: str, ) -> int:
+        self.write_bytes(b'\xef\xbb\xbf' + data.encode('utf-8'))
+        return self
+    
+    def ensure_utf8_bom(self):
+        """
+        Sometimes even if the file encoding is UTF-8, some service systems may mistakenly recognize it as another encoding,
+
+        For example:
+        during the process of copying/pasting files, 
+        some bytes are lost and the copied string from the log is mixed with invisible characters.
+        The markdown contains many emojis and emoticons
+        """
+        if not self.is_text():
+            return self
+        if self.read_bytes().startswith(b'\xef\xbb\xbf'):
+            return self
+        self.write_bytes(b'\xef\xbb\xbf' + self.read_bytes())
+        return self
+ 
     def append_text(self, data: str, encoding: str = "utf-8",errors: str = None):
         with self.open(mode='a', encoding=encoding) as f:
             f.write(data)

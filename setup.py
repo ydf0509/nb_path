@@ -6,9 +6,9 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="nb-path",  # Package name, must be unique on PyPI
-    version="2.3",  # Version number, needs to be incremented for each new release
+    version="2.4",  # Version number, needs to be incremented for each new release
     author="ydf0509",  # Your name or nickname
-    author_email="your_email@example.com",  # Your contact email
+    author_email="ydf0509@example.com",  # Your contact email
     description="A Python path library that gives filesystem operations superpowers",  # Short description
     long_description=long_description,  # Detailed description, from README
     long_description_content_type="text/markdown",  # Description file type

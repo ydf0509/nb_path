@@ -171,8 +171,13 @@ class AiMdGenerator(NbPath):
                 relative_file_name_posix = file.relative_to(
                     project_root_path
                 ).as_posix()
+                try:
+                    text = file.read_text()
+                except Exception as e:
+                    self.logger.error(f"Error reading file {file}: {e}")
+                    text = ""
                 file_text_list.append(
-                    [file, relative_file_name_posix, file.suffix, file.read_text()]
+                    [file, relative_file_name_posix, file.suffix, text]
                 )
                 self.logger.debug(f"need merged file: {file}")
             else:
@@ -197,11 +202,14 @@ class AiMdGenerator(NbPath):
 
             str_list.append(f"**code file end: {relative_file_name_posix}**\n")
             str_list.append("---\n\n")
-        # self.write_text('\n'.join(str_list))
-        with self.open(mode="a", encoding="utf-8") as f:
-            f.write("\n".join(str_list))
-        return self
 
+        # with self.open(mode="a", encoding="utf-8") as f:
+        #     f.write("\n".join(str_list))
+        self.append_text('\n'.join(str_list))
+        self.ensure_utf8_bom()
+        return self
+        
+        
     def merge_from_dir(
         self,
         project_root: typing.Union[os.PathLike, str],
