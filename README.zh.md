@@ -16,7 +16,8 @@
 
 ## 🆚 与 `pathlib` 对比
 
-`nb_path` 不仅仅是 `pathlib` 的简单封装，而是一个功能强大的超集。
+`nb_path` 不仅仅是 `pathlib` 的简单封装，而是一个功能强大的超集。  
+`pathlib` 是文件路径包，`nb_path` 是 路径和文件操作二合一的包，`nb_path` 除了表示路径，还包含了最常用高频的文件操作。
 
 | 功能 (Feature) | `pathlib.Path` | `nb_path.NbPath` | 优势说明 |
 | :--- | :---: | :---: | :--- |

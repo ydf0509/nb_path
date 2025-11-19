@@ -17,6 +17,7 @@ Its design philosophy is: **to turn all common path-related operations into meth
 ## 🆚 Comparison with `pathlib`
 
 `nb_path` is not just a simple wrapper around `pathlib`; it's a powerful superset.
+`pathlib` is a path package, while `nb_path` is a path and file operation all-in-one package. `nb_path` not only represents paths but also includes the most commonly used, high-frequency file operations.
 
 | Feature | `pathlib.Path` | `nb_path.NbPath` | Advantage |
 | :--- | :---: | :---: | :--- |

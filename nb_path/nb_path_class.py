@@ -146,10 +146,12 @@ class NbPath(
     def append_text(self, data: str, encoding: str = "utf-8",errors: str = None):
         with self.open(mode='a', encoding=encoding) as f:
             f.write(data)
+        return self
      
     def merge_text_from_files(self, file_list: typing.List[typing.Union[os.PathLike, str]], separator: str = "\n") :
         for file in file_list:
             self.append_text(NbPath(file).read_text() + separator)
+        return self
         
     def get_textfile_info(self, encoding: str = "utf-8",is_show_info: bool=False) -> dict:
         """
